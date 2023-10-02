@@ -1,0 +1,402 @@
+---
+title: "ST302 Group Project"
+author: "Conor Joseph Thompson Gargan <br> Saisampath Adusumilli <br> Sheriff Timilehin Oyadina"
+date: '2023-04-26'
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<h2 style="color: rgb(0, 113, 197);">
+
+**Introduction**
+
+</h2>
+
+<font size = "3"> The given dataset contains yearly population data for 237 countries spanning 72 years from 1950 to 2022. The data contains 17,301 rows with 8 columns. The columns include the ISO3 code, name of the country, year, total population(recorded as of July 1st), male and female population, calculated ratio of male:female, and the median age of each population.
+
+To analyse the data, we used three major visualisations. The first plot is a choropleth map that shows the median age of each country from 1950 to 2022, which lets us examine regional based trends in median age over time. The second plot is a scatterplot that examines the relationship between population change and median age, with a slider that allows us to view data for individual years between 1950 and 2022. Finally, we have visualized the sex ratio of the top and bottom five countries in 2012 and 2022, providing insights into how gender demographics have shifted over time.
+
+Our aim is to analyse the data and uncover insights into trends related to median age, population sex ratio and population change over time. Through visual analysis we aim to identify significant patterns across nations and to investigate possible causes for these effects.
+
+Using these visualisations, we hope to gain a better understanding of the development and change in population dynamics in regards to these aforementioned variables. </font>
+
+<h2 style="color: rgb(0, 113, 197);">
+
+**Data Adjustments**
+
+</h2>
+
+<font size = "3">
+
+-   Created a Continent column so can group by Continents for further analysis.
+
+-   Kosovo is not universally recognized so had to manually add the continent for Kosovo.
+
+-   Simplified some the of the provided variable names.
+
+-   For the purpose of calculating the population change (total, male, and female) of a country from one year to the one before, three columns were created.
+
+-   Created a Rank column for Sex Ratio to use it for further analysis. </font>
+
+```{r, warning=FALSE, message=FALSE}
+load("pop.Rdata")
+```
+
+```{r,warning=FALSE,message=FALSE}
+library(tidyverse)
+library(fpp3)
+#install.packages("mapCountryData")
+#library(mapCountryData)
+library(countrycode)
+library(dplyr)
+library(ggrepel)
+library(rnaturalearthdata)
+library(ggplot2)
+library(plotly)
+library(ggiraph)
+library(patchwork) # for combining plots p1+p1
+library(ggiraph)
+library(sf)
+library(rnaturalearth)
+library(viridis)
+library(gapminder)
+library(crosstalk)
+library(tidyr)
+
+```
+
+<h2 style="color: rgb(0, 113, 197);">
+
+**Question 1**
+
+</h2>
+
+<h4>
+
+**What are the regional and country-level variations in median age across the world, and what factors might be contributing to these differences?**
+
+</h4>
+
+<h3 style="color: rgb(0, 113, 197);">
+
+**Plot**
+
+</h3>
+
+```{r, warning=FALSE, message=FALSE}
+#setwd("/users/students/19505453/My folder/st302/Project")
+
+#loading in the dataset
+#load("~/My folder/st302/Project/pop.Rdata")
+##pop <- pop
+#create world map template
+world_map <- ne_countries(scale = "small", returnclass = "sf")
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+
+#select data necessary for the plot only. Rename column ISO3 to match the world map template.
+med_data <- pop %>%
+  select(ISO3_code, Location, Time, MedianAgePop) %>%
+  rename(iso_a3_eh=ISO3_code )
+
+
+#for specific time frame viewing, takes less time to load
+# for(i in c(1950:2000)) {
+#         med_data <- med_data %>%
+#           filter(!Time == i)
+#       }
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+#merge the data to add median age to world map
+ merged_data_med <- merge(world_map, med_data, by = "iso_a3_eh")
+# 
+# view(world_map)
+#create ggplot
+#adjust lwd to better see smaller countries. 
+#change colour scheme direction from light to dark
+#add tooltip argument to input data from dataset location
+p_med <- ggplot(,aes(frame = Time)) +
+  geom_sf(data = merged_data_med,
+          aes(fill = MedianAgePop,
+              text = paste0("Country: ",name,sep = "\n",
+                            "Median Age:", MedianAgePop,sep = "\n",
+                            "Year:", Time)),
+          lwd = 0.1,
+          color = "black") +
+  scale_fill_viridis(direction = -1) +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  ggtitle("Median Age across the globe",
+          subtitle = "237 countries.") +
+  theme_bw()+
+  theme(panel.background = element_rect(fill = "aliceblue"))
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+
+#assign the ggplotly plot to a variable name
+pmedotly <- ggplotly(p_med, tooltip = c("colour","text"))
+
+
+#add arguments to plotly, prevent animation between frames(animation centres and redistributes the points(does not look good))
+pmedotly %>%
+  animation_opts(transition = 0,frame = list(duration = 5), mode = "immediate", easing = NULL) %>%
+  style(hoveron = "fill")
+
+
+```
+
+<h3 style="color: rgb(0, 113, 197);">
+
+**Interpretation**
+
+</h3>
+
+<font size = "3"> The choropleth shown displays the change in median age across 273 countries from 1950 through to 2022. The median age of a population is the age at which half of the population is above(older) and half of the population is below that age(younger).
+
+-   Africa ranks amongst the lowest median ages of all the countries, with little to no increase in median age from 1950 to 2022.
+
+-   Europe can be seen to house the majority of the highest ranking countries in this data set with a considerable increase in median age over the years.
+
+-   The Americas(USA, South America), Asia, and Australia showcase the general trend of global increase in median age over the last half century with consistent progression across the board.
+
+The median age of a country can be linked to the socioeconomic status of that country, taking into account the gdp, healthcare and quality of governance, with better conditions leading to a higher median age and the converse proving true for developing countries struggling with poverty and poor living conditions.
+
+With the constant threat of conflict and disease in countries such as Niger and Uganda it is to be expected that the median age will suffer as a result.
+
+Another correlated factor to a country's median age is their fertility rates and general life expectancy.
+
+Countries with high life expectancy and low fertility rates(such as Japan, Italy with 1.3,1.2 children per woman respectively) are seen to have the highest median age, with people living to an older age and having less children to bring down the median.
+
+In comparison, the countries with the highest fertility rates such as Niger and Chad (6.9,5.8 children per woman respectively) and lowest life expectancy can be seen to have the lowest median age of all. </font>
+
+```{r, warning=FALSE, message=FALSE}
+## creating a continent column and adding continents
+pop1 <- mutate(pop,Continent = countrycode(ISO3_code,"iso3c","continent"))
+
+## Kosovo is not universally recognized so had to manually add the continent for Kosovo.
+pop1$Continent <- ifelse(is.na(pop1$Continent),"Europe",pop1$Continent)
+
+##changing the variable names to simpler ones
+pop1 <- pop1 |> rename(t_pop = TPopulation1July,
+                       t_male_pop = TPopulationMale1July,
+                       t_female_pop = TPopulationFemale1July)
+```
+
+```{r, warning=FALSE, message=FALSE}
+pop2 <- pop1 |>
+  group_by(Location) |>
+  mutate(pop_change = (t_pop-lag(t_pop))/lag(t_pop)*100,
+      pop_male_change = (t_male_pop-lag(t_male_pop))/lag(t_male_pop)*100,
+    pop_female_change = (t_female_pop-lag(t_female_pop))/lag(t_female_pop)*100)
+pop2[is.na(pop2)] <- 0 ##as the 1952 is the first year in the dataset
+```
+
+<h2 style="color: rgb(0, 113, 197);">
+
+**Question 2**
+
+</h2>
+
+<h4>
+
+**How has the percentage change in population varied with median age for different countries over time?**
+
+</h4>
+
+<h4>
+
+**What significant events or factors have influenced notable population changes in certain regions?**
+
+</h4>
+
+<h3 style="color: rgb(0, 113, 197);">
+
+**Plot**
+
+</h3>
+
+```{r, warning=FALSE, message=FALSE}
+## frame is used to see the changes in the plot each year
+pop2 |>
+  plot_ly() |> 
+  add_markers(x=~ MedianAgePop,y =~ pop_change,color =~ Continent,
+          text=~paste("Country: ", Location, "<br>",
+          "Median Age: ", sprintf("%.2f",MedianAgePop), "<br>",
+          "Population Change: ", sprintf("%.3f", pop_change)),
+          hoverinfo = "text",
+              frame =~ Time) |>
+  layout(title = "Population change vs Median Age",
+         xaxis = list(title="Median Age"),
+         yaxis = list(title = "Population Change(in %)")) |>
+  animation_opts(frame = 200, transition = 200,redraw = FALSE)
+
+```
+
+<h3 style="color: rgb(0, 113, 197);">
+
+**Interpretation**
+
+</h3>
+
+<font size = "3"> In the 1950s, we can observe that most countries had similar levels of percentage change in population and median age, with a majority of countries experiencing small increases of less than 10% and maintaining a lower median age.
+
+However, as time progressed, the plot showed that the median age of countries began to spread out, with some countries experiencing a higher median age than others.
+
+This widening spread suggests that there may be significant differences in aging trends across countries and population dynamics that may have important implications for a wide range of social, economic, and political issues.
+
+We can notice that most European countries are ending up on the higher side of the median age and African countries are ranking among the lowest in the median age while the other continents having a steady increase in population as well as the median age and lie in between Europe and Africa with outliers like Japan which has a higher median age compared to other countries from Asia.
+
+There does not appear to be any visual correlation between percentage change in population and median age.
+
+Some of the notable major population changes are:
+
+-   1991 Kuwait (-20%) and 1992 (+21%) - Gulf War, Many Kuwaiti citizens fled the country and in addition there were also significant casualties and deaths during the war.However, after the war, many of the workers who fled earlier returned to Kuwait to resume their jobs, resulting in a sudden increase in the population. Additionally, the Kuwaiti government encouraged the return of expatriates to help with the country's reconstruction efforts.
+
+-   1991 Somalia,Eritrea,Liberia (decrease) - All these countries were affected by the civil war and also were accompanied by political instability, with frequent changes in government and widespread violence.
+
+-   1995 Rwanda (-15.5%) and 1997(+14%) - The decrease in 1995 can be explained by the Rwandan genocide that took place in 1994. During the genocide, an estimated 800,000 to 1 million Rwandans were killed, The genocide resulted in significant displacement of people, with many fleeing the country to neighboring countries such as Burundi. However, in 1997, there was a significant increase in population due to the return of Rwandan refugees from neighboring countries. Many Rwandan refugees returned to their homes in Rwanda following the establishment of a new government and the implementation of peace agreements.
+
+-   2006-2010 UAE, Qatar (increase) - demand for foreign workers to support the rapidly expanding economies of both countries. Both countries have implemented policies to attract foreign workers, such as offering tax incentives and reducing visa requirements.
+
+-   2022 war - Decrease in Ukraine's population resulted in increase in population for neighboring countries like Republic of Moldova, Slovakia, Poland, Hungary and Romania which all share a border with Ukraine </font>
+
+<h2 style="color: rgb(0, 113, 197);">
+
+**Question 3**
+
+</h2>
+
+<h4>
+
+**What is PSR and why is it important?**
+
+</h4>
+
+<font size = "3"> So what is Population sex ratio(PSR)? It refers to the ratio of the number of males to females in a given population. It is expressed as the number of males per 100 females in a given population. So if a country has PSR of 98 it means that there are 98 males per 100 females in the population of that country. In other words, there are more females than males in that population. A population sex ratio of 100 would indicate an equal number of males and females in the population. Should be noted that Pop sex ratio is not directly tied/correlated to population size as and can vary greatly depending on a range of factors.
+
+For example, Saudi Arabia and Papua New Guinea are two countries with vastly different population sizes but,(30,821,000 for Saudi Arabia and 10,142,000) are similar population sex ratios. It is important that A heavily skewed sex ratio may lead to a decline in population growth which can have economic and social implications. For example, Saudi Arabia and Papua New Guinea are two countries with vastly different population sizes but similar population sex ratios.
+
+</font>
+
+<h3 style="color: rgb(0, 113, 197);">
+
+**Plot**
+
+</h3>
+
+```{r, warning=FALSE, message=FALSE}
+
+##to arrange ranks for the year 2022
+pop3 <- pop1 %>% filter(Time == 2022 & t_pop > 10000) %>% 
+  mutate(rank = dense_rank(PopSexRatio)) %>% 
+  arrange(PopSexRatio)
+
+
+
+##gets the top 5 and bottom 5 countries
+top_bottom_data_2022 <- rbind(head(pop3, 5), tail(pop3, 5))
+top_bottom_data_2022 <- top_bottom_data_2022[, -ncol(top_bottom_data_2022)]
+
+
+##stores the iso3 codes for top 5 and bottom 5 sex ratios from 2022
+code <- c("UKR", "RUS", "PRT", "ZWE", "NPL", 
+               "MYS", "PNG", "IND", "JOR", "SAU")
+
+##getting the countries mentioned above to get the ratios from 2012
+top_bottom_data_2012 <- pop1 %>% 
+  filter(ISO3_code%in% code & Time %in% 2012)
+
+
+bottom_countries <- rbind(top_bottom_data_2012, top_bottom_data_2022) %>% 
+  filter(ISO3_code %in% c("UKR", "RUS", "PRT", "ZWE", "NPL"))
+
+
+top_countries <-  rbind(top_bottom_data_2012, top_bottom_data_2022) %>% 
+  filter(ISO3_code %in% c("MYS", "PNG", "IND", "JOR", "SAU"))
+
+bottom<- ggplot(bottom_countries, aes(x= Location, y = PopSexRatio, fill = factor(Time)))+
+  geom_bar(stat = "identity", position = position_dodge(width = 0.64), width = 0.6, legend = TRUE)+
+   scale_color_manual(values=c("red", "blue"))+
+  ggtitle("Top 5 Countries by Sex Ratio         Bottom 5 Countries by Sex Ratio")+
+   theme(plot.title = element_text(hjust = 0.5),axis.text.x = element_text(angle = 45, hjust = 1))+
+  geom_hline(yintercept = c(100), linetype = "dashed", color = "orange")+
+   labs(x = "Country", y = " Population Sex ratio", fill = "Year")+
+  scale_fill_manual(values = c("#12355B", "#D72638"))
+#bottom
+ 
+
+
+top<- ggplot(top_countries, aes(x= Location, y = PopSexRatio, fill = factor(Time)))+
+  geom_bar(stat = "identity", position = position_dodge(width = 0.64), width = 0.6)+
+  ggtitle("Top 5 Countries by Sex Ratio")+
+   theme(plot.title = element_text(hjust = 0.5),axis.text.x = element_text(angle = 45, hjust = 1))+
+  geom_hline(yintercept = c(100), linetype = "dashed", color = "orange")+
+   labs(x = "Country", y = " Population Sex ratio", fill = "Year")+
+  scale_fill_manual(values = c("#12355B", "#D72638"))+
+  guides(fill = FALSE)
+#top
+
+
+# Combine bottom2 and top2 into a single page with two subplots
+subplot(ggplotly(top), ggplotly(bottom), nrows = 1) %>% 
+   layout( yaxis = list(title = "Population Sex Ratio"))
+```
+
+<h3 style="color: rgb(0, 113, 197);">
+
+**Interpretation**
+
+</h3>
+
+<font size = "3"> The graphs above details the top 5 and bottom 5 countries in the dataset in terms of their PSR from 2012 to 2022. Dotted line at 105 as the World Health Organization(WHO) considers the normal range of population sex ratio to be between 100 and 110.
+
+<https://ourworldindata.org/gender-ratio>
+
+The graphs show that some countries have experienced a significant change in their PSR over time. For example, Malaysia had a high sex ratio in 2012 but experienced a sharp decline in 2022, while Nepal had a low sex ratio in 2012 but saw a significant increase in 2022.
+
+Saudi Arabia far exceeds the ideal range. This value/gap has been forecasted to increase, which could have a negative effect on population. The country has implemented policies and laws to address gender inequality, including efforts to improve education and employment opportunities for women.
+
+<https://www.my.gov.sa/wps/portal/snp/careaboutyou/womenempowering/!ut/p/z0/04_Sj9CPykssy0xPLMnMz0vMAfIjo8zijQx93d0NDYz8LYIMLA0CQ4xCTZwN_Ay8TIz0g1Pz9AuyHRUBwQYLNQ>!!/ </font>
+
+<h2 style="color: rgb(0, 113, 197);">
+
+**Conclusion**
+
+</h2>
+
+<font size = "3"> Through analysis of the data, it can be seen that the worldwide population has been growing consistently through the years, with some regions increasing a faster rate than others. The median age is increased over time for the majority of countries with some regions noticeably struggling to keep up with the rest.
+
+The general trend of higher median age can be contributed to higher life expectancy and declining fertility rates. Trends observed can be seen to be regionally based rather than on a country by country basis. This could be related to local relations between countries allowing mutual benefit from development and commodities.
+
+For a country to maintain population growth it is important that they maintain a PSR value of around \~105. A skewed value in either direction may lead to a decline in population which can have social, economic, and demographic implications.
+
+By exploring these factors, we can gain a better understanding of the complex demographic patterns and processes that are shaping our world today. </font>
+
+<h2 style="color: rgb(0, 113, 197);">
+
+**Contribution**
+
+</h2>
+
+<font size = "3">
+
+*I, Conor Thompson had the primary responsibility for the material in 'Introduction' and 'Question 1'*
+
+*I, Saisampath Adusumilli had the primary responsibility for the material in 'HTML Formatting' and 'Question 2'*
+
+*I, Sheriff Timilehin Oyadina had the primary responsibility for the material in 'Conclusion' and 'Question 3'*
+
+</font>
